@@ -6,7 +6,7 @@ when libtorrent updates and make it easily instalablle in python i'll update the
 ## how to use
 
 * Download the all the files in the same folder.
-* Run hentaibot.py
+* Run hentaibot.py (in linux you right click in the folder, open terminal and write'''python3 hentaibot.py''')
 * now you need to probide a path for:
 Where are your torrent from nhentai stored
 Where you want the to be downloaded
