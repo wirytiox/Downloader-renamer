@@ -1,167 +1,132 @@
-import tkinter as tk
-from tkinter import filedialog
-from renamer import FolderCopyRenamer
-from torrent_downloader import TorrentDownload
-import configparser
-import os
-import threading
-
-# Configuration file path
-config_file = "config.ini"
-
-# Create and read the configuration file
-config = configparser.ConfigParser()
-config.read(config_file)
-
-# Retrieve the last entered paths from the configuration file (if available)
-last_torrents_path = config.get("Paths", "LastTorrentsPath", fallback="")
-last_destination_path = config.get("Paths", "LastDestinationPath", fallback="")
-last_destination_renamed_path = config.get("Paths", "LastDestinationRenamedPath", fallback="")
-
-def browse_torrents_path():
-    selected_path = filedialog.askdirectory()
-    torrents_path_entry.delete(0, tk.END)
-    torrents_path_entry.insert(0, selected_path)
-
-def browse_destination_path():
-    selected_path = filedialog.askdirectory()
-    destination_path_entry.delete(0, tk.END)
-    destination_path_entry.insert(0, selected_path)
-
-def browse_destination_renamed_path():
-    selected_path = filedialog.askdirectory()
-    destination_renamed_path_entry.delete(0, tk.END)
-    destination_renamed_path_entry.insert(0, selected_path)
-
-def run_torrent_downloader():
-    def download_torrents():
-        # Get the source and destination paths from the GUI
-        torrents_path = torrents_path_entry.get()
-        destination_path = destination_path_entry.get()
-
-        # Check if the required paths are not empty
-        if not torrents_path or not destination_path:
-            print("Error: Please provide both torrents path and destination path.")
-            return
-
-        # Print entered paths
-        print("Entered Torrents Path:", torrents_path)
-        print("Entered Destination Path:", destination_path)
-
-        # Save the entered paths to the configuration file
-        config["Paths"] = {
-            "LastTorrentsPath": torrents_path,
-            "LastDestinationPath": destination_path,
-            "LastDestinationRenamedPath": destination_renamed_path_entry.get()
-        }
-        with open(config_file, "w") as configfile:
-            config.write(configfile)
-
-        # Print the paths read from the configuration file
-        print("Last Torrents Path from Config:", config.get("Paths", "LastTorrentsPath"))
-        print("Last Destination Path from Config:", config.get("Paths", "LastDestinationPath"))
-        print("Last Destination Renamed Path from Config:", config.get("Paths", "LastDestinationRenamedPath"))
-
-        # Create an instance of the TorrentDownload class with the provided paths
-        global torrent_downloader
-        torrent_downloader = TorrentDownload(torrents_path, destination_path)
-
-        # Call the download_torrents_in_folder method to start the torrent download
-        torrent_downloader.download_torrents_in_folder()
-
-    # Create a separate thread for running the torrent downloader
-    download_thread = threading.Thread(target=download_torrents)
-    download_thread.start()
-
-def cancel_torrent_download():
-    if 'torrent_downloader' in globals():
-        torrent_downloader.cancel_download()
-
-def run_renamer_script():
-    # Get the destination renamed path from the GUI
-    destination_renamed_path = destination_renamed_path_entry.get()
-
-    # Check if the required path is not empty
-    if not destination_renamed_path:
-        print("Error: Please provide the destination renamed path.")
-        return
-
-    # Get the source path from the GUI
-    source_path = destination_path_entry.get()
-
-    # Check if the source path is not empty
-    if not source_path:
-        print("Error: Please provide the source path.")
-        return
-
-    # Print entered paths
-    print("Entered Source Path:", source_path)
-    print("Entered Destination Renamed Path:", destination_renamed_path)
-
-    # Create an instance of the FolderCopyRenamer class with the provided paths
-    folder_renamer = FolderCopyRenamer(source_path, destination_renamed_path)
-
-    # Call the copy_folders and remove_end_spaces_in_directory_tree methods to perform the renaming
-    folder_renamer.copy_folders()
-    folder_renamer.remove_end_spaces_in_directory_tree()
+import subprocess
+import sys
+def install_package(package_name):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+except ImportError:
+    print("tkinter not found, installing...")
+    install_package("tk")
+try:
+    import requests
+except ImportError:
+    print("requests not found, installing...")
+    install_package("requests")
+try:
+    from transmission_rpc import Client
+except ImportError:
+    print("transmission_rpc not found, installing...")
+    install_package("transmission-rpc")
 
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Torrent Downloader and Renamer")
+# Function to browse and select a folder path
+def browse_folder():
+    folder_path = filedialog.askdirectory()
+    if folder_path:
+        folder_path_entry.delete(0, tk.END)
+        folder_path_entry.insert(0, folder_path)
 
-    # Create the torrent's path Browse button and entry field
-    torrents_path_frame = tk.Frame(root)
-    torrents_path_frame.pack(pady=5)
+# Function to toggle authorization state
+def toggle_authorization():
+    if auth_var.get() == 1:
+        username_entry.config(state=tk.NORMAL)
+        password_entry.config(state=tk.NORMAL)
+        print("Authorization enabled")
+    else:
+        username_entry.config(state=tk.DISABLED)
+        password_entry.config(state=tk.DISABLED)
+        print("Authorization disabled")
+        
 
-    torrents_path_button = tk.Button(torrents_path_frame, text="Browse Torrents Path", command=browse_torrents_path)
-    torrents_path_button.pack(side=tk.LEFT)
 
-    torrents_path_entry = tk.Entry(torrents_path_frame, width=40)
-    torrents_path_entry.pack(side=tk.LEFT, padx=10, fill=tk.X)
+# Function to handle the download button click
+def download_action():
+    authorization_status = "Enabled" if auth_var.get() == 1 else "Disabled"
+    folder_path = folder_path_entry.get()
+    host = host_entry.get()
+    port = port_entry.get()
+    username = username_entry.get()
+    password = password_entry.get()
+    if auth_var.get() == 1:
+        c = Client(host=host, port=port,username=username, password=password)
+    else:
+        c = Client(host=host, port=port)
+    # Print the settings to the console (or perform actual download logic here)
+    print(f"Authorization: {authorization_status}")
+    print(f"Username: {username}")
+    print(f"Password: {password}")
+    print(f"Folder Path: {folder_path}")
+    print(f"Host: {host}")
+    print(f"Port: {port}")
+    print("Download initiated...")
+        # Iterate through the files in the specified directory
+    torrent_files = []
+    directory_path=folder_path
+    for filename in os.listdir(directory_path):
+        # Check if the file ends with '.torrent'
+        if filename.endswith('.torrent'):
+            # Add the full path of the .torrent file to the list
+            full_path = os.path.join(directory_path, filename)
+            print("filename is " + filename)
+            torrent_files.append(full_path)
 
-    # Set the last entered torrents path if available
-    if last_torrents_path:
-        torrents_path_entry.insert(0, last_torrents_path)
+            # Open the .torrent file and read its content
+            with open(full_path, 'rb') as torrent_file:
+                torrent_data = torrent_file.read()
 
-    # Create the destination path Browse button and entry field
-    destination_path_frame = tk.Frame(root)
-    destination_path_frame.pack(pady=5)
+            # Add the torrent to the Transmission server
+            torrent = c.add_torrent(torrent_data)
+            print(f"Added torrent with ID: {torrent.id}")
 
-    destination_path_button = tk.Button(destination_path_frame, text="Browse Destination Path", command=browse_destination_path)
-    destination_path_button.pack(side=tk.LEFT)
+root = tk.Tk()
+root.title("Transmission Settings")
 
-    destination_path_entry = tk.Entry(destination_path_frame, width=40)
-    destination_path_entry.pack(side=tk.LEFT, padx=10, fill=tk.X)
+# Authorization Checkbox
+auth_var = tk.IntVar()
+auth_checkbox = tk.Checkbutton(root, text="Enable Authorization", variable=auth_var, command=toggle_authorization)
+auth_checkbox.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=10, padx=10)
 
-    # Set the last entered destination path if available
-    if last_destination_path:
-        destination_path_entry.insert(0, last_destination_path)
+# Username entry
+username_label = tk.Label(root, text="Username:")
+username_label.grid(row=1, column=0, sticky=tk.E, padx=10, pady=5)
+username_entry = tk.Entry(root, width=40)
+username_entry.grid(row=1, column=1, padx=10, pady=5, columnspan=2)
 
-    # Create the renamed destination path Browse button and entry field
-    destination_renamed_path_frame = tk.Frame(root)
-    destination_renamed_path_frame.pack(pady=5)
+# Password entry
+password_label = tk.Label(root, text="Password:")
+password_label.grid(row=2, column=0, sticky=tk.E, padx=10, pady=5)
+password_entry = tk.Entry(root, show="*", width=40)
+password_entry.grid(row=2, column=1, padx=10, pady=5, columnspan=2)
 
-    destination_renamed_path_button = tk.Button(destination_renamed_path_frame, text="Browse Destination Renamed Path", command=browse_destination_renamed_path)
-    destination_renamed_path_button.pack(side=tk.LEFT)
+# Folder path entry and button
+folder_path_entry = tk.Entry(root, width=35)
+folder_path_entry.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky=tk.E)
 
-    destination_renamed_path_entry = tk.Entry(destination_renamed_path_frame, width=40)
-    destination_renamed_path_entry.pack(side=tk.LEFT, padx=10, fill=tk.X)
+browse_button = tk.Button(root, text="Browse", command=browse_folder)
+browse_button.grid(row=3, column=2, padx=10, pady=5, sticky=tk.W)
 
-    # Set the last entered destination renamed path if available
-    if last_destination_renamed_path:
-        destination_renamed_path_entry.insert(0, last_destination_renamed_path)
+# Input for localhost
+host_label = tk.Label(root, text="Host:")
+host_label.grid(row=4, column=0, sticky=tk.E, padx=10, pady=5)
+host_entry = tk.Entry(root, width=40)
+host_entry.insert(0, "localhost")
+host_entry.grid(row=4, column=1, padx=10, pady=5, columnspan=2)
 
-    # Create a button to run the Torrent Downloader
-    run_torrent_button = tk.Button(root, text="Run Torrent Downloader", command=run_torrent_downloader)
-    run_torrent_button.pack(pady=10)
+# Input for port
+port_label = tk.Label(root, text="Port:")
+port_label.grid(row=5, column=0, sticky=tk.E, padx=10, pady=5)
+port_entry = tk.Entry(root, width=40)
+port_entry.insert(0, "9091")
+port_entry.grid(row=5, column=1, padx=10, pady=5, columnspan=2)
 
-    # Create a button to cancel the Torrent Downloader
-    cancel_torrent_button = tk.Button(root, text="Cancel Download", command=cancel_torrent_download)
-    cancel_torrent_button.pack(pady=5)
+# Download button
+download_button = tk.Button(root, text="Download", command=download_action)
+download_button.grid(row=6, column=0, columnspan=3, pady=10)
 
-    # Create a button to run the renamer.py script
-    run_renamer_button = tk.Button(root, text="Run renamer.py Script", command=run_renamer_script)
-    run_renamer_button.pack(pady=10)
+# Disable username and password fields by default
+username_entry.config(state=tk.DISABLED)
+password_entry.config(state=tk.DISABLED)
 
-    root.mainloop()
+# Run the application
+root.mainloop()
